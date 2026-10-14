@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<!-- ArbeitKalender FINAL iPhone v8 -->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Календарь смен</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ArbeitKalender">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<style>
+:root{
+  --morning:#f59e0b;
+  --late:#3b82f6;
+  --night:#111111;
+  --off:#ffffff;
+  --vacation:#22c55e;
+  --sick:#ef4444;
+  --free:#a855f7;
+  --grid:#d1d5db;
+  --text:#111827;
+  --muted:#6b7280;
+  --bg:#f3f4f6;
+  --today:#ef4444;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);padding:16px}
+.app{max-width:1100px;margin:auto}
+.panel{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.05);margin-bottom:16px}
+.top{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:6px;min-width:210px;flex:1}
+label{font-size:13px;font-weight:700;color:var(--muted)}
+input,select,textarea,button{font:inherit}
+input,select,textarea{border:1px solid #cbd5e1;border-radius:10px;padding:10px}
+button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:#111827;color:#fff}
+button.secondary{background:#e5e7eb;color:#111827}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+.legend-item{display:flex;gap:7px;align-items:center;font-size:14px}
+.sw{width:18px;height:18px;border:1px solid #9ca3af;border-radius:5px}
+.hint{margin-top:12px;font-size:14px;color:var(--muted);line-height:1.45}
+.header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.month-title{font-size:28px;font-weight:800}
+.nav{display:flex;gap:8px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.weekday{text-align:center;font-weight:700;color:var(--muted);padding:5px 0}
+.blank{min-height:108px}
+.day{
+  min-height:108px;border:1px solid var(--grid);border-radius:14px;padding:10px;
+  display:flex;flex-direction:column;position:relative;cursor:pointer;overflow:hidden;
+  user-select:none;
+}
+.day:hover{outline:3px solid rgba(17,24,39,.18)}
+.day:active{transform:scale(.99)}
+.day.morning{background:var(--morning);color:#111}
+.day.late{background:var(--late);color:#fff}
+.day.night{background:var(--night);color:#fff}
+.day.off{background:#fff;color:#111}
+.day.vacation{background:var(--vacation);color:#fff}
+.day.sick{background:var(--sick);color:#fff}
+.day.free{background:var(--free);color:#fff}
+.date{font-size:18px;font-weight:800;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.shift{font-size:12px;font-weight:700;margin-top:auto}
+.planned-shift{font-size:11px;font-weight:600;margin-top:4px;opacity:.88}
+.note-preview{font-size:12px;line-height:1.3;white-space:pre-wrap;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.manual{position:absolute;right:8px;bottom:8px;font-size:10px;font-weight:800;opacity:.72}
+.today{font-size:10px;border:2px solid var(--today);background:rgba(255,255,255,.8);color:#991b1b;padding:1px 6px;border-radius:999px}
+
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
+  align-items:center;justify-content:center;padding:16px;z-index:99999;
+}
+.modal-bg.show{display:flex}
+.modal{
+  width:min(520px,100%);background:#fff;border-radius:16px;padding:18px;
+  box-shadow:0 20px 70px rgba(0,0,0,.3);position:relative;z-index:100000;
+}
+.modal h2{margin:0 0 14px}
+.modal textarea{width:100%;min-height:140px;resize:vertical}
+.actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+.status{font-size:12px;color:var(--muted);margin-top:8px}
+@media(max-width:760px){
+  .calendar{grid-template-columns:repeat(2,1fr)}
+  .weekday,.blank{display:none}
+}
+@media(max-width:480px){.calendar{grid-template-columns:1fr}}
+
+@media (max-width: 700px){
+  .day .date > span:first-child{
+    font-size: 20px;
+    font-weight: 800;
+  }
+}
+
+
+@media(max-width:480px){
+  body{padding:10px}
+  .panel{padding:14px}
+  .day{min-height:128px}
+  .date{font-size:21px}
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <div class="top">
+      <div class="field">
+        <label id="languageLabel">Язык</label>
+        <select id="languageSelect">
+          <option value="ru">Русский</option>
+          <option value="de">Deutsch</option>
+          <option value="uk">Українська</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="field">
+        <label id="workFormatLabel">Формат работы</label>
+        <select id="shiftModel">
+          <option value="morning_only">Только утренняя</option>
+          <option value="late_only">Только поздняя</option>
+          <option value="night_only">Только ночная</option>
+          <option value="morning_late">Утренняя ↔ Поздняя</option>
+          <option value="morning_night">Утренняя ↔ Ночная</option>
+          <option value="night_late">Ночная ↔ Поздняя</option>
+          <option value="morning_night_late">Утренняя → Ночная → Поздняя</option>
+          <option value="morning_late_night">Утренняя → Поздняя → Ночная</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label id="knownMondayLabel">Понедельник недели, которую знаешь точно</label>
+        <input id="cycleStart" type="date">
+      </div>
+
+      <div class="field" id="startShiftField">
+        <label id="whichWeekLabel">Какая это неделя</label>
+        <select id="startShift"></select>
+      </div>
+
+      <button id="saveSettings">Сохранить график</button>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="sw" style="background:var(--morning)"></span><span id="legendMorning">Утренняя</span></div>
+      <div class="legend-item"><span class="sw" style="background:var(--late)"></span><span id="legendLate">Поздняя</span></div>
+      <div class="legend-item"><span class="sw" style="background:var(--night)"></span><span id="legendNight">Ночная</span></div>
+      <div class="legend-item"><span class="sw" style="background:#fff"></span><span id="legendOff">Выходной</span></div>
+      <div class="legend-item"><span class="sw" style="background:var(--vacation)"></span><span id="legendVacation">Отпуск</span></div>
+      <div class="legend-item"><span class="sw" style="background:var(--sick)"></span><span id="legendSick">Больничный</span></div>
+      <div class="legend-item"><span class="sw" style="background:var(--free)"></span><span id="legendFree">Отгул</span></div>
+    </div>
+
+    <div class="hint" id="cycleHint">
+      <b>ВАЖНО:</b> нажми на любой день, включая субботу или воскресенье — откроется окно редактирования.
+      Там можно поставить любую смену, отпуск, больничный, отгул и написать заметку.
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="header">
+      <div class="month-title" id="monthTitle"></div>
+      <div class="nav">
+        <button class="secondary" id="prev">← Назад</button>
+        <button class="secondary" id="todayBtn">Сегодня</button>
+        <button class="secondary" id="next">Вперёд →</button>
+      </div>
+    </div>
+    <div class="calendar" id="calendar"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Редактирование дня</h2>
+
+    <div class="field" style="margin-bottom:12px">
+      <label id="dayTypeLabel">Тип дня</label>
+      <select id="dayType">
+        <option value="auto">По графику автоматически</option>
+        <option value="morning">Утренняя</option>
+        <option value="night">Ночная</option>
+        <option value="late">Поздняя</option>
+        <option value="off">Выходной</option>
+        <option value="vacation">Urlaub / Отпуск</option>
+        <option value="sick">Krank / Больничный</option>
+        <option value="free">Frei / Отгул</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label id="noteLabel">Заметка</label>
+      <textarea id="note" placeholder="Например: доработал до 12, ушёл / 22:00–06:00 / взял отгул"></textarea>
+    </div>
+
+    <div class="status" id="editStatus"></div>
+
+    <div class="actions">
+      <button class="secondary" id="clear">Сбросить день</button>
+      <button class="secondary" id="cancel">Отмена</button>
+      <button id="saveDay">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  function months(){ return tr("months"); }
+  function weekdays(){ return tr("weekdays"); }
+  const fullWeekdays=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  function shiftLabel(shift){
+    return tr(shift);
+  }
+
+  const shiftCodesMap={
+    morning:"F",
+    night:"N",
+    late:"S"
+  };
+
+  const I18N={
+    ru:{
+      language:"Язык", workFormat:"Формат работы", knownMonday:"Понедельник недели, которую знаешь точно",
+      whichWeek:"Какая это неделя", saveSchedule:"Сохранить график", today:"Сегодня",
+      prev:"← Назад", next:"Вперёд →", morning:"Утренняя", night:"Ночная", late:"Поздняя",
+      off:"Выходной", vacation:"Отпуск", sick:"Больничный", free:"Отгул",
+      automatic:"По графику автоматически", note:"Заметка", reset:"Сбросить день",
+      cancel:"Отмена", save:"Сохранить", manual:"вручную", planned:"По графику",
+      onlyMorning:"Только утренняя", onlyLate:"Только поздняя", onlyNight:"Только ночная",
+      weekdays:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],
+      months:["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],
+      hint:"Нажми на любой день — откроется окно редактирования. Можно поставить смену, отпуск, больничный, отгул и заметку.", dayType:"Тип дня", editDay:"Редактирование дня", notePlaceholder:"Например: доработал до 12, ушёл / 22:00–06:00 / взял отгул"
+    },
+    de:{
+      language:"Sprache", workFormat:"Arbeitsmodell", knownMonday:"Montag einer bekannten Woche",
+      whichWeek:"Welche Schichtwoche ist das?", saveSchedule:"Plan speichern", today:"Heute",
+      prev:"← Zurück", next:"Weiter →", morning:"Frühschicht", night:"Nachtschicht", late:"Spätschicht",
+      off:"Frei", vacation:"Urlaub", sick:"Krank", free:"Freizeitausgleich",
+      automatic:"Automatisch laut Plan", note:"Notiz", reset:"Tag zurücksetzen",
+      cancel:"Abbrechen", save:"Speichern", manual:"manuell", planned:"Laut Plan",
+      onlyMorning:"Nur Frühschicht", onlyLate:"Nur Spätschicht", onlyNight:"Nur Nachtschicht",
+      weekdays:["Mo","Di","Mi","Do","Fr","Sa","So"],
+      months:["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+      hint:"Tippe auf einen Tag, um ihn zu bearbeiten. Du kannst Schicht, Urlaub, Krank, Freizeitausgleich und Notizen setzen.", dayType:"Tag / Schicht", editDay:"Tag bearbeiten", notePlaceholder:"Zum Beispiel: bis 12 Uhr gearbeitet / 22:00–06:00 / Freizeitausgleich"
+    },
+    uk:{
+      language:"Мова", workFormat:"Формат роботи", knownMonday:"Понеділок відомого тижня",
+      whichWeek:"Який це тиждень", saveSchedule:"Зберегти графік", today:"Сьогодні",
+      prev:"← Назад", next:"Вперед →", morning:"Ранкова", night:"Нічна", late:"Пізня",
+      off:"Вихідний", vacation:"Відпустка", sick:"Лікарняний", free:"Відгул",
+      automatic:"Автоматично за графіком", note:"Нотатка", reset:"Скинути день",
+      cancel:"Скасувати", save:"Зберегти", manual:"вручну", planned:"За графіком",
+      onlyMorning:"Лише ранкова", onlyLate:"Лише пізня", onlyNight:"Лише нічна",
+      weekdays:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"],
+      months:["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"],
+      hint:"Натисни на будь-який день для редагування. Можна вибрати зміну, відпустку, лікарняний, відгул і нотатку.", dayType:"Тип дня / зміни", editDay:"Редагування дня", notePlaceholder:"Наприклад: працював до 12 / 22:00–06:00 / взяв відгул"
+    },
+    en:{
+      language:"Language", workFormat:"Work pattern", knownMonday:"Monday of a known week",
+      whichWeek:"Which shift week is this?", saveSchedule:"Save schedule", today:"Today",
+      prev:"← Back", next:"Next →", morning:"Morning", night:"Night", late:"Late",
+      off:"Day off", vacation:"Vacation", sick:"Sick", free:"Time off",
+      automatic:"Automatic from schedule", note:"Note", reset:"Reset day",
+      cancel:"Cancel", save:"Save", manual:"manual", planned:"Planned",
+      onlyMorning:"Morning only", onlyLate:"Late only", onlyNight:"Night only",
+      weekdays:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+      months:["January","February","March","April","May","June","July","August","September","October","November","December"],
+      hint:"Tap any day to edit it. You can set a shift, vacation, sick leave, time off and a note.", dayType:"Day / shift type", editDay:"Edit day", notePlaceholder:"For example: worked until 12 / 22:00–06:00 / took time off"
+    }
+  };
+
+  const languageSelect=document.getElementById("languageSelect");
+  const languageLabel=document.getElementById("languageLabel");
+  const workFormatLabel=document.getElementById("workFormatLabel");
+  const knownMondayLabel=document.getElementById("knownMondayLabel");
+  const whichWeekLabel=document.getElementById("whichWeekLabel");
+
+  function currentLang(){ return localStorage.getItem("arbeitLang_v1") || "ru"; }
+  function tr(key){ return I18N[currentLang()][key] || key; }
+
+  const shiftModels={
+    morning_only:["morning"],
+    late_only:["late"],
+    night_only:["night"],
+    morning_late:["morning","late"],
+    morning_night:["morning","night"],
+    night_late:["night","late"],
+    morning_night_late:["morning","night","late"],
+    morning_late_night:["morning","late","night"]
+  };
+
+  const shiftModel=document.getElementById("shiftModel");
+  const cycleStart=document.getElementById("cycleStart");
+  const startShift=document.getElementById("startShift");
+  const startShiftField=document.getElementById("startShiftField");
+  const cycleHint=document.getElementById("cycleHint");
+  const calendar=document.getElementById("calendar");
+  const monthTitle=document.getElementById("monthTitle");
+  const modalBg=document.getElementById("modalBg");
+  const modalTitle=document.getElementById("modalTitle");
+  const dayType=document.getElementById("dayType");
+  const note=document.getElementById("note");
+  const editStatus=document.getElementById("editStatus");
+
+  const now=new Date();
+  let visible=new Date(now.getFullYear(),now.getMonth(),1);
+  let editKey=null;
+
+  function iso(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function monday(d){
+    const x=new Date(d);
+    const n=(x.getDay()+6)%7;
+    x.setDate(x.getDate()-n);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+
+  function diffDays(a,b){ return Math.round((a-b)/86400000); }
+
+  function getJSON(k){
+    try{return JSON.parse(localStorage.getItem(k)||"{}")}
+    catch(e){return {}}
+  }
+
+  function setJSON(k,v){
+    localStorage.setItem(k,JSON.stringify(v));
+  }
+
+
+  function modelLabel(modelKey){
+    const pattern=shiftModels[modelKey] || shiftModels.morning_night_late;
+    if(pattern.length===1){
+      if(pattern[0]==="morning") return tr("onlyMorning");
+      if(pattern[0]==="late") return tr("onlyLate");
+      if(pattern[0]==="night") return tr("onlyNight");
+    }
+    const sep=pattern.length===2 ? " ↔ " : " → ";
+    return pattern.map(shiftLabel).join(sep);
+  }
+
+  function applyLanguage(){
+    const lang=currentLang();
+    languageSelect.value=lang;
+
+    languageLabel.textContent=tr("language");
+    workFormatLabel.textContent=tr("workFormat");
+    knownMondayLabel.textContent=tr("knownMonday");
+    whichWeekLabel.textContent=tr("whichWeek");
+    document.getElementById("saveSettings").textContent=tr("saveSchedule");
+    document.getElementById("todayBtn").textContent=tr("today");
+    document.getElementById("prev").textContent=tr("prev");
+    document.getElementById("next").textContent=tr("next");
+
+    document.getElementById("legendMorning").textContent=tr("morning");
+    document.getElementById("legendLate").textContent=tr("late");
+    document.getElementById("legendNight").textContent=tr("night");
+    document.getElementById("legendOff").textContent=tr("off");
+    document.getElementById("legendVacation").textContent=tr("vacation");
+    document.getElementById("legendSick").textContent=tr("sick");
+    document.getElementById("legendFree").textContent=tr("free");
+
+    const dayTypeOptions = [
+      ["auto","automatic"],
+      ["morning","morning"],
+      ["night","night"],
+      ["late","late"],
+      ["off","off"],
+      ["vacation","vacation"],
+      ["sick","sick"],
+      ["free","free"]
+    ];
+    dayTypeOptions.forEach(([value,key])=>{
+      const opt=[...dayType.options].find(o=>o.value===value);
+      if(opt) opt.textContent=tr(key);
+    });
+
+    const dayTypeLabel=document.getElementById("dayTypeLabel");
+    if(dayTypeLabel) dayTypeLabel.textContent=tr("dayType");
+
+    const noteLabel=document.getElementById("noteLabel");
+    if(noteLabel) noteLabel.textContent=tr("note");
+    note.placeholder=tr("notePlaceholder");
+
+    document.getElementById("clear").textContent=tr("reset");
+    document.getElementById("cancel").textContent=tr("cancel");
+    document.getElementById("saveDay").textContent=tr("save");
+
+    [...shiftModel.options].forEach(opt=>{
+      opt.textContent=modelLabel(opt.value);
+    });
+
+    updateShiftModelUI();
+  }
+
+  function currentPattern(){
+    return shiftModels[shiftModel.value] || shiftModels.morning_night_late;
+  }
+
+  function updateShiftModelUI(){
+    const pattern=currentPattern();
+    const oldValue=startShift.value;
+
+    startShift.innerHTML="";
+    pattern.forEach((shift,idx)=>{
+      const opt=document.createElement("option");
+      opt.value=String(idx);
+      opt.textContent=shiftLabel(shift);
+      startShift.appendChild(opt);
+    });
+
+    const savedReferenceShift=localStorage.getItem("shiftReferenceShift_v4");
+    let wantedShift=savedReferenceShift;
+
+    if(!wantedShift || !pattern.includes(wantedShift)){
+      wantedShift=pattern[0];
+    }
+
+    const wantedIndex=pattern.indexOf(wantedShift);
+    startShift.value=String(Math.max(0,wantedIndex));
+
+    if(pattern.length===1){
+      startShiftField.style.display="none";
+    }else{
+      startShiftField.style.display="";
+    }
+
+    const cycleText=pattern.map(s=>shiftLabel(s)).join(" → ");
+    cycleHint.innerHTML=`<b>${cycleText}</b><br>${tr("hint")}`;
+  }
+
+  function autoInfo(d){
+    const codeMap = {morning:"F", night:"N", late:"S", off:"OFF"};
+
+    function pack(cls){
+      return {
+        cls: cls,
+        label: tr(cls),
+        code: codeMap[cls],
+        manual: false
+      };
+    }
+
+    const pattern=currentPattern();
+
+    function weekShiftForMonday(mondayDate){
+      const base = new Date(cycleStart.value + "T00:00:00");
+      const weekDiff = Math.floor(diffDays(mondayDate, monday(base)) / 7);
+
+      let referenceShift=localStorage.getItem("shiftReferenceShift_v4");
+      if(!referenceShift || !pattern.includes(referenceShift)){
+        const idx=Math.max(0,parseInt(startShift.value||"0",10));
+        referenceShift=pattern[Math.min(idx,pattern.length-1)] || pattern[0];
+      }
+
+      const startIdx=pattern.indexOf(referenceShift);
+      const idx=(((startIdx + weekDiff)%pattern.length)+pattern.length)%pattern.length;
+      return pattern[idx];
+    }
+
+    const dow = (d.getDay() + 6) % 7; // Пн=0 ... Вс=6
+    const thisMonday = monday(d);
+
+    // Суббота всегда выходной
+    if(dow === 5){
+      return pack("off");
+    }
+
+    // Воскресенье рабочее только перед ночной неделей
+    if(dow === 6){
+      const nextMonday = new Date(thisMonday);
+      nextMonday.setDate(nextMonday.getDate() + 7);
+
+      const nextWeekShift = weekShiftForMonday(nextMonday);
+      return nextWeekShift === "night" ? pack("night") : pack("off");
+    }
+
+    const thisWeekShift = weekShiftForMonday(thisMonday);
+
+    // Ночная: Пн-Чт, пятница автоматически выходной
+    if(thisWeekShift === "night"){
+      return (dow >= 0 && dow <= 3) ? pack("night") : pack("off");
+    }
+
+    // Утренняя и поздняя: Пн-Пт
+    return pack(thisWeekShift);
+  }
+
+  function manualInfo(v){
+    if(v==="morning") return {cls:"morning",label:tr("morning"),code:"F",manual:true};
+    if(v==="night") return {cls:"night",label:tr("night"),code:"N",manual:true};
+    if(v==="late") return {cls:"late",label:tr("late"),code:"S",manual:true};
+    if(v==="off") return {cls:"off",label:tr("off"),code:"OFF",manual:true};
+    if(v==="vacation") return {cls:"vacation",label:tr("vacation"),code:"URL",manual:true,status:true};
+    if(v==="sick") return {cls:"sick",label:tr("sick"),code:"KRANK",manual:true,status:true};
+    if(v==="free") return {cls:"free",label:tr("free"),code:"FREI",manual:true,status:true};
+    return null;
+  }
+
+  function info(d){
+    const overrides=getJSON("shiftOverrides_v3");
+    const key=iso(d);
+    const auto=autoInfo(d);
+
+    if(overrides[key]){
+      const manual=manualInfo(overrides[key]);
+      if(manual && manual.status){
+        manual.planned=auto;
+      }
+      return manual;
+    }
+
+    return auto;
+  }
+
+  function openEdit(d){
+    const dayTypeLabel=document.getElementById("dayTypeLabel");
+    if(dayTypeLabel) dayTypeLabel.textContent=tr("day_type") || tr("workFormat");
+    const noteLabel=document.getElementById("noteLabel");
+    if(noteLabel) noteLabel.textContent=tr("note");
+    const saveDayBtn=document.getElementById("saveDay");
+    if(saveDayBtn) saveDayBtn.textContent=tr("save");
+    const cancelBtn=document.getElementById("cancel");
+    if(cancelBtn) cancelBtn.textContent=tr("cancel");
+    const clearBtn=document.getElementById("clear");
+    if(clearBtn) clearBtn.textContent=tr("reset");
+
+    editKey=iso(d);
+    const overrides=getJSON("shiftOverrides_v3");
+    const notes=getJSON("shiftNotes_v3");
+
+    dayType.value=overrides[editKey]||"auto";
+    note.value=notes[editKey]||"";
+
+    const localeMap={ru:"ru-RU",de:"de-DE",uk:"uk-UA",en:"en-GB"};
+    modalTitle.textContent=d.toLocaleDateString(localeMap[currentLang()]||"ru-RU",{
+      weekday:"long",day:"numeric",month:"long",year:"numeric"
+    });
+    editStatus.textContent=editKey;
+    modalBg.classList.add("show");
+  }
+
+  function closeEdit(){
+    modalBg.classList.remove("show");
+    editKey=null;
+  }
+
+  function saveEdit(){
+    if(!editKey) return;
+
+    const overrides=getJSON("shiftOverrides_v3");
+    const notes=getJSON("shiftNotes_v3");
+
+    if(dayType.value==="auto") delete overrides[editKey];
+    else overrides[editKey]=dayType.value;
+
+    const text=note.value.trim();
+    if(text) notes[editKey]=text;
+    else delete notes[editKey];
+
+    setJSON("shiftOverrides_v3",overrides);
+    setJSON("shiftNotes_v3",notes);
+
+    closeEdit();
+    render();
+  }
+
+  function clearEdit(){
+    if(!editKey) return;
+
+    const overrides=getJSON("shiftOverrides_v3");
+    const notes=getJSON("shiftNotes_v3");
+
+    delete overrides[editKey];
+    delete notes[editKey];
+
+    setJSON("shiftOverrides_v3",overrides);
+    setJSON("shiftNotes_v3",notes);
+
+    closeEdit();
+    render();
+  }
+
+  function render(){
+    calendar.innerHTML="";
+    monthTitle.textContent=`${months()[visible.getMonth()]} ${visible.getFullYear()}`;
+
+    weekdays().forEach(w=>{
+      const e=document.createElement("div");
+      e.className="weekday";
+      e.textContent=w;
+      calendar.appendChild(e);
+    });
+
+    const y=visible.getFullYear();
+    const m=visible.getMonth();
+    const first=new Date(y,m,1);
+    const offset=(first.getDay()+6)%7;
+
+    for(let i=0;i<offset;i++){
+      const blank=document.createElement("div");
+      blank.className="blank";
+      calendar.appendChild(blank);
+    }
+
+    const count=new Date(y,m+1,0).getDate();
+    const notes=getJSON("shiftNotes_v3");
+
+    for(let day=1;day<=count;day++){
+      const d=new Date(y,m,day);
+      const inf=info(d);
+      const key=iso(d);
+
+      const el=document.createElement("div");
+      el.className=`day ${inf.cls}`;
+      el.setAttribute("data-date",key);
+      el.setAttribute("role","button");
+      el.setAttribute("tabindex","0");
+
+      const top=document.createElement("div");
+      top.className="date";
+      const isToday=d.toDateString()===now.toDateString();
+      const wd=weekdays()[(d.getDay()+6)%7];
+      top.innerHTML=`<span>${wd} · ${day}</span>${isToday?`<span class="today">${tr("today")}</span>`:""}`;
+
+      const sh=document.createElement("div");
+      sh.className="shift";
+      sh.textContent=`${inf.code} · ${inf.label}`;
+
+      el.appendChild(top);
+
+      if(notes[key]){
+        const p=document.createElement("div");
+        p.className="note-preview";
+        p.textContent=notes[key];
+        el.appendChild(p);
+      }
+
+      el.appendChild(sh);
+
+      if(inf.status && inf.planned){
+        const planned=document.createElement("div");
+        planned.className="planned-shift";
+        planned.textContent=`${tr("planned")}: ${inf.planned.code} · ${inf.planned.label}`;
+        el.appendChild(planned);
+      }
+
+      if(inf.manual){
+        const mb=document.createElement("div");
+        mb.className="manual";
+        mb.textContent=tr("manual");
+        el.appendChild(mb);
+      }
+
+      el.addEventListener("click",()=>openEdit(d));
+      el.addEventListener("keydown",(e)=>{
+        if(e.key==="Enter" || e.key===" "){
+          e.preventDefault();
+          openEdit(d);
+        }
+      });
+
+      calendar.appendChild(el);
+    }
+  }
+
+  languageSelect.addEventListener("change",()=>{
+    localStorage.setItem("arbeitLang_v1", languageSelect.value);
+    applyLanguage();
+    render();
+  });
+
+  shiftModel.addEventListener("change",()=>{
+    updateShiftModelUI();
+    render();
+  });
+
+  document.getElementById("saveSettings").addEventListener("click",()=>{
+    if(!cycleStart.value){
+      alert(tr("knownMonday"));
+      return;
+    }
+
+    const pattern=currentPattern();
+    const idx=Math.max(0,parseInt(startShift.value||"0",10));
+    const referenceShift=pattern[Math.min(idx,pattern.length-1)] || pattern[0];
+
+    localStorage.setItem("shiftModel_v4",shiftModel.value);
+    localStorage.setItem("shiftCycleStart_v3",cycleStart.value);
+    localStorage.setItem("shiftReferenceShift_v4",referenceShift);
+
+    render();
+  });
+
+  document.getElementById("prev").addEventListener("click",()=>{
+    visible=new Date(visible.getFullYear(),visible.getMonth()-1,1);
+    render();
+  });
+
+  document.getElementById("next").addEventListener("click",()=>{
+    visible=new Date(visible.getFullYear(),visible.getMonth()+1,1);
+    render();
+  });
+
+  document.getElementById("todayBtn").addEventListener("click",()=>{
+    visible=new Date(now.getFullYear(),now.getMonth(),1);
+    render();
+  });
+
+  document.getElementById("saveDay").addEventListener("click",saveEdit);
+  document.getElementById("cancel").addEventListener("click",closeEdit);
+  document.getElementById("clear").addEventListener("click",clearEdit);
+
+  modalBg.addEventListener("click",(e)=>{
+    if(e.target===modalBg) closeEdit();
+  });
+
+  document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape" && modalBg.classList.contains("show")) closeEdit();
+  });
+
+  const savedStart=localStorage.getItem("shiftCycleStart_v3");
+  const savedModel=localStorage.getItem("shiftModel_v4") || "morning_night_late";
+  const legacyShift=localStorage.getItem("shiftCycleShift_v3");
+
+  cycleStart.value=savedStart || "2026-10-12";
+  shiftModel.value=shiftModels[savedModel] ? savedModel : "morning_night_late";
+
+  // Перенос старой настройки в новую схему при первом запуске
+  if(!localStorage.getItem("shiftReferenceShift_v4") && legacyShift!==null){
+    const legacyMap=["morning","night","late"];
+    const legacyIndex=parseInt(legacyShift,10);
+    if(legacyMap[legacyIndex]){
+      localStorage.setItem("shiftReferenceShift_v4",legacyMap[legacyIndex]);
+    }
+  }
+
+  applyLanguage();
+  render();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(console.error);
+  });
+}
+</script>
+
+</body>
+</html>
